@@ -1,87 +1,94 @@
+// index.js
 const { Client, GatewayIntentBits, EmbedBuilder } = require('discord.js');
-const fs = require('fs');
 const cron = require('node-cron');
+const fs = require('fs');
+require('dotenv').config(); // loads TOKEN from Railway variable
 
-const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+// --- CONFIG ---
+const GAMES_FILE = './games.json'; // JSON file containing games
+const DEFAULT_CHANNEL_ID = '1488681992470925475'; // replace with your Discord channel ID
 
-const DATA_FILE = "games.json";
-const ANNOUNCE_CHANNEL_ID = "1488681992470925475";
-
-let data = { games: [], lastGame: null };
-if (fs.existsSync(DATA_FILE)) {
-  data = JSON.parse(fs.readFileSync(DATA_FILE));
-}
-
-function saveData() {
-  fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
-}
-
-function getRandomGame() {
-  if (data.games.length === 0) return null;
-
-  let filtered = data.games.filter(g => g.name !== data.lastGame);
-  if (filtered.length === 0) filtered = data.games;
-
-  const game = filtered[Math.floor(Math.random() * filtered.length)];
-  data.lastGame = game.name;
-  saveData();
-  return game;
-}
-
-client.on('interactionCreate', async interaction => {
-  if (!interaction.isChatInputCommand()) return;
-
-  if (interaction.commandName === "addgame") {
-    const name = interaction.options.getString("name");
-    const channel = interaction.options.getChannel("channel");
-    const image = interaction.options.getAttachment("image");
-
-    data.games.push({
-      name,
-      channelId: channel.id,
-      image: image ? image.url : null
-    });
-
-    saveData();
-    interaction.reply(`Added ${name}`);
-  }
-
-  if (interaction.commandName === "listgames") {
-    if (data.games.length === 0) return interaction.reply("No games.");
-
-    const list = data.games.map(g => `• ${g.name}`).join("\n");
-    interaction.reply(list);
-  }
-
-  if (interaction.commandName === "preview") {
-    const game = getRandomGame();
-    if (!game) return interaction.reply("No games.");
-
-    const embed = new EmbedBuilder()
-      .setTitle("🎮 Preview")
-      .setDescription(`${game.name}\n<#${game.channelId}>`)
-      .setImage(game.image || null);
-
-    interaction.reply({ embeds: [embed] });
-  }
+// --- CREATE CLIENT ---
+const client = new Client({
+    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages]
 });
 
-client.once('ready', () => {
-  console.log("Bot is online");
+// --- LOAD GAMES ---
+let gamesData = { games: [], lastGame: null };
 
-  cron.schedule('0 9 * * 1', async () => {
-    const game = getRandomGame();
-    if (!game) return;
+if (fs.existsSync(GAMES_FILE)) {
+    gamesData = JSON.parse(fs.readFileSync(GAMES_FILE, 'utf-8'));
+} else {
+    fs.writeFileSync(GAMES_FILE, JSON.stringify(gamesData, null, 2));
+}
 
-    const channel = await client.channels.fetch(ANNOUNCE_CHANNEL_ID);
+// --- READY EVENT ---
+client.once('ready', async () => {
+    console.log(`Bot is online as ${client.user.tag}`);
+});
+
+// --- SLASH COMMAND HANDLER ---
+client.on('interactionCreate', async (interaction) => {
+    if (!interaction.isChatInputCommand()) return;
+
+    const { commandName } = interaction;
+
+    if (commandName === 'addgame') {
+        const name = interaction.options.getString('name');
+        const channel = interaction.options.getChannel('channel');
+        const image = interaction.options.getString('image');
+
+        // Save to JSON
+        gamesData.games.push({
+            name,
+            channelId: channel.id,
+            image: image || null
+        });
+
+        fs.writeFileSync(GAMES_FILE, JSON.stringify(gamesData, null, 2));
+        await interaction.reply(`✅ Added game **${name}** to the list.`);
+    }
+
+    if (commandName === 'listgames') {
+        if (gamesData.games.length === 0) {
+            return interaction.reply('No games have been added yet.');
+        }
+        const gameList = gamesData.games.map(g => g.name).join('\n');
+        await interaction.reply(`🎮 **Games:**\n${gameList}`);
+    }
+});
+
+// --- FUNCTION TO PICK RANDOM GAME ---
+function pickRandomGame() {
+    if (gamesData.games.length === 0) return null;
+
+    let game;
+    do {
+        game = gamesData.games[Math.floor(Math.random() * gamesData.games.length)];
+    } while (gamesData.games.length > 1 && game.name === gamesData.lastGame);
+
+    gamesData.lastGame = game.name;
+    fs.writeFileSync(GAMES_FILE, JSON.stringify(gamesData, null, 2));
+    return game;
+}
+
+// --- CRON JOB TO POST EVERY MONDAY ---
+cron.schedule('0 12 * * 1', async () => { // every Monday at 12:00 UTC
+    const game = pickRandomGame();
+    if (!game) return console.log('No games in list.');
+
+    const channel = await client.channels.fetch(game.channelId || DEFAULT_CHANNEL_ID);
+    if (!channel) return console.log('Channel not found.');
 
     const embed = new EmbedBuilder()
-      .setTitle("🎮 Metroidvania of the Week")
-      .setDescription(`${game.name}\n<#${game.channelId}>`)
-      .setImage(game.image || null);
+        .setTitle(`🎮 Metroidvania of the Week: ${game.name}`)
+        .setDescription(`Feel free to discuss it in <#${game.channelId || DEFAULT_CHANNEL_ID}>`)
+        .setColor(0x00ff00);
+
+    if (game.image) embed.setImage(game.image);
 
     channel.send({ embeds: [embed] });
-  });
 });
 
+// --- LOGIN ---
 client.login(process.env.TOKEN);
