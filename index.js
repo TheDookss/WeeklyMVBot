@@ -5,7 +5,7 @@ const cron = require('node-cron');
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
 const DATA_FILE = "games.json";
-const ANNOUNCE_CHANNEL_ID = "PASTE_CHANNEL_ID_HERE";
+const ANNOUNCE_CHANNEL_ID = "1488681992470925475";
 
 let data = { games: [], lastGame: null };
 if (fs.existsSync(DATA_FILE)) {
