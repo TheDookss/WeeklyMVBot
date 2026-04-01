@@ -86,4 +86,15 @@ client.on('interactionCreate', async interaction => {
 });
 
 // ===== Login =====
+require('dotenv').config(); // Only needed if using .env locally
+const { Client, GatewayIntentBits } = require('discord.js');
+
+const client = new Client({
+  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages]
+});
+
+client.once('ready', () => {
+  console.log(`Logged in as ${client.user.tag}`);
+});
+
 client.login(process.env.TOKEN);
