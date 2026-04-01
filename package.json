@@ -1,0 +1,16 @@
+{
+  "name": "weeklymvbot",
+  "version": "1.0.0",
+  "description": "My Discord bot",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "deploy": "node deploy-commands.js"
+  },
+  "author": "Dooks",
+  "license": "MIT",
+  "dependencies": {
+    "discord.js": "^14.12.1",
+    "dotenv": "^17.3.1"
+  }
+}
