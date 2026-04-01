@@ -2,7 +2,6 @@
 const { Client, GatewayIntentBits, EmbedBuilder } = require('discord.js');
 const cron = require('node-cron');
 const fs = require('fs');
-require('dotenv').config(); // loads TOKEN from Railway variable
 
 // --- CONFIG ---
 const GAMES_FILE = './games.json'; // JSON file containing games
