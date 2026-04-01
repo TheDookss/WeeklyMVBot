@@ -1,6 +1,5 @@
 // index.js
 const { Client, GatewayIntentBits, SlashCommandBuilder, Routes, REST, EmbedBuilder } = require('discord.js');
-require('dotenv').config(); // only needed if running locally
 
 // ===== Bot Setup =====
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
