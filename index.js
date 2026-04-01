@@ -1,32 +1,27 @@
-// index.js
-const { Client, GatewayIntentBits, SlashCommandBuilder, Routes, REST, EmbedBuilder } = require('discord.js');
+// Load environment variables
+require('dotenv').config();
 
-// ===== Bot Setup =====
+const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder } = require('discord.js');
+
+// Create a new Discord client
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
-// ===== Games list =====
-// For each game, add name, channelId, and image URL
-const games = [
-  { name: 'Hollow Knight', channelId: 'CHANNEL_ID_1', image: 'https://i.imgur.com/abcd123.png' },
-  { name: 'Dead Cells', channelId: 'CHANNEL_ID_2', image: 'https://i.imgur.com/efgh456.png' },
-  { name: 'Ori and the Blind Forest', channelId: 'CHANNEL_ID_3', image: 'https://i.imgur.com/ijkl789.png' }
-];
-
-// ===== Slash Commands Setup =====
+// Simple slash command
 const commands = [
   new SlashCommandBuilder()
-    .setName('game')
-    .setDescription('Send a random game recommendation!')
-].map(cmd => cmd.toJSON());
+    .setName('ping')
+    .setDescription('Replies with Pong!')
+].map(command => command.toJSON());
 
+// Deploy slash commands to your guild
 const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
 
 (async () => {
   try {
     console.log('Started refreshing application (/) commands.');
     await rest.put(
-      Routes.applicationCommands(process.env.CLIENT_ID), // put your bot's client ID in ENV too
-      { body: commands },
+      Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID),
+      { body: commands }
     );
     console.log('Successfully reloaded application (/) commands.');
   } catch (error) {
@@ -34,67 +29,19 @@ const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
   }
 })();
 
-// ===== Bot Ready =====
+// When the bot is ready
 client.once('ready', () => {
-  console.log(`Bot is online as ${client.user.tag}`);
-  scheduleWeeklyGame();
+  console.log(`Logged in as ${client.user.tag}!`);
 });
 
-// ===== Weekly Game Scheduler =====
-function scheduleWeeklyGame() {
-  // Time until next Monday 12:00 PM UTC
-  const now = new Date();
-  const nextMonday = new Date();
-  nextMonday.setUTCDate(now.getUTCDate() + ((1 + 7 - now.getUTCDay()) % 7)); // 1 = Monday
-  nextMonday.setUTCHours(12, 0, 0, 0); // 12:00 PM UTC
-
-  const delay = nextMonday - now;
-  setTimeout(() => {
-    sendRandomGame();
-    setInterval(sendRandomGame, 7 * 24 * 60 * 60 * 1000); // repeat every 7 days
-  }, delay);
-}
-
-// ===== Send Random Game =====
-async function sendRandomGame() {
-  const game = games[Math.floor(Math.random() * games.length)];
-  const channel = await client.channels.fetch(game.channelId);
-  if (!channel) return console.error(`Channel ${game.channelId} not found`);
-
-  const embed = new EmbedBuilder()
-    .setTitle(`The Metroidvania of the Week is ${game.name}`)
-    .setDescription(`Feel free to discuss it in <#${game.channelId}>!`)
-    .setImage(game.image)
-    .setColor(0x00FFFF);
-
-  channel.send({ embeds: [embed] });
-}
-
-// ===== Slash Command Handler =====
+// Listen for interactions (slash commands)
 client.on('interactionCreate', async interaction => {
-  if (!interaction.isChatInputCommand()) return;
+  if (!interaction.isCommand()) return;
 
-  if (interaction.commandName === 'game') {
-    const game = games[Math.floor(Math.random() * games.length)];
-    const embed = new EmbedBuilder()
-      .setTitle(`Random Game: ${game.name}`)
-      .setDescription(`Check it out in <#${game.channelId}>!`)
-      .setImage(game.image)
-      .setColor(0x00FFFF);
-    await interaction.reply({ embeds: [embed] });
+  if (interaction.commandName === 'ping') {
+    await interaction.reply('Pong!');
   }
 });
 
-// ===== Login =====
-require('dotenv').config(); // Only needed if using .env locally
-const { Client, GatewayIntentBits } = require('discord.js');
-
-const client = new Client({
-  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages]
-});
-
-client.once('ready', () => {
-  console.log(`Logged in as ${client.user.tag}`);
-});
-
+// Login the bot
 client.login(process.env.TOKEN);
